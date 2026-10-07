@@ -1,0 +1,10 @@
+{
+  "stages": [
+    {"id": "A", "name": "Etap A", "funded": true, "resources": ["Koparka"]},
+    {"id": "B", "name": "Etap B", "funded": true, "resources": ["Koparka"]},
+    {"id": "C", "name": "Etap C", "funded": true, "resources": ["Dzwig"]},
+    {"id": "D", "name": "Etap D", "funded": true, "resources": ["Dzwig"]}
+  ],
+  "logicalDependencies": [],
+  "legalDependencies": []
+}

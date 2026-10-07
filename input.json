@@ -1,0 +1,10 @@
+{
+  "stages": [
+    {"id": "A", "name": "Analiza", "funded": true, "resources": ["Koparka"]},
+    {"id": "B", "name": "Zakupy", "funded": true, "resources": ["Koparka"]},
+    {"id": "C", "name": "Badania", "funded": true, "resources": ["Laboratorium"]},
+    {"id": "D", "name": "Eksperyment", "funded": false, "resources": ["Laboratorium"]}
+  ],
+  "logicalDependencies": [{"before": "A", "after": "C"}],
+  "legalDependencies": [{"before": "C", "after": "D"}]
+}

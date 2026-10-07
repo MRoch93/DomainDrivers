@@ -1,4 +1,5 @@
 /target/
+/output.json
 /.mvn-cache/
 /.idea/
 /.vscode/
