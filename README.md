@@ -2,7 +2,51 @@
 
 Edukacyjny projekt Maven dla Java 21. Zawiera dane wejściowe managera,
 ich tłumaczenie na model domenowy, silnik CSP z backtrackingiem oraz zapis wyniku
-do JSON. Bez Springa, REST API, bazy danych i zewnętrznego solvera.
+do JSON oraz lokalne HTTP API. Bez Springa, bazy danych i zewnętrznego solvera.
+
+## Lokalne HTTP API
+
+Wymagane JDK 21. Uruchom w PowerShell:
+
+```powershell
+.\run-api.cmd
+```
+
+Skrypt buduje aplikację i uruchamia serwer JDK `HttpServer` na porcie 8080,
+wyłącznie na adresie loopback (localhost). Zakończ przez Ctrl+C.
+Interfejs plikowy `run.cmd` pozostaje dostępny i może działać równolegle.
+
+W drugim oknie PowerShell:
+
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:8080/api/health'
+$body = Get-Content -Raw -Encoding UTF8 .\input.json
+Invoke-RestMethod -Method Post -Uri 'http://localhost:8080/api/parallelization' -ContentType 'application/json; charset=utf-8' -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) | ConvertTo-Json -Depth 20
+```
+
+`GET /api/health` zwraca HTTP 200 i `{"status":"UP"}`.
+`POST /api/parallelization` przyjmuje dokładnie format managera używany przez
+`input.json` i zwraca HTTP 200 z pełnym `ParallelizationOutput`: `status`,
+`normalizedConstraints`, `optimalGroupCount`, `solutionCount`, `solutions`.
+Sprzeczne ograniczenia również dają HTTP 200, z wynikiem `NO_SOLUTION`.
+Błędy JSON lub danych managera dają HTTP 400 i `{"error":"opis problemu"}`.
+Nieznany endpoint daje 404, nieobsługiwana metoda 405 z nagłówkiem `Allow`.
+Nieoczekiwany błąd aplikacji daje 500 z ogólnym komunikatem, bez stack trace.
+
+Nowe klasy `api.ApiMain` i `api.ParallelizationHttpServer` odpowiadają za
+uruchomienie serwera oraz obsługę HTTP. Granicą jest odczyt JSON jako
+`ManagerInput` i wywołanie istniejącej `ParallelizationApplication.process()`.
+Ta metoda wykorzystuje mapper (który wywołuje walidator), model domenowy i CSP.
+Oba interfejsy współdzielą `readInput()` oraz `process()`; API nie powiela reguł.
+Nie powstał frontend, a model domenowy, mapper i silnik nie zostały zmienione.
+
+Testy API używają rzeczywistego serwera na wolnym lokalnym porcie oraz klienta
+HTTP JDK. Porównują cały raport HTTP z raportem plikowym i sprawdzają błędy.
+
+```powershell
+.\mvnw.cmd verify
+.\mvnw.cmd '-Dtest=ParallelizationHttpServerTest' test
+```
 
 ## Uruchomienie aplikacji
 

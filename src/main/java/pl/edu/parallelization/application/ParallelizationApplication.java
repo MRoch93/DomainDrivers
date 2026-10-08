@@ -13,6 +13,7 @@ import pl.edu.parallelization.input.ManagerInputMapper;
 import pl.edu.parallelization.output.ParallelizationOutput;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -29,6 +30,14 @@ public final class ParallelizationApplication {
                 new ParallelizationEngine().solve(problem.stages(), problem.constraints()));
     }
 
+    public ManagerInput readInput(InputStream input) throws IOException {
+        try {
+            return json.readValue(input, ManagerInput.class);
+        } catch (JsonProcessingException exception) {
+            throw new InputValidationException("Niepoprawny JSON wejściowy: " + exception.getOriginalMessage());
+        }
+    }
+
     public ParallelizationOutput run(Path input, Path output) throws IOException {
         input = input.toAbsolutePath().normalize();
         output = output.toAbsolutePath().normalize();
@@ -39,10 +48,8 @@ public final class ParallelizationApplication {
         Files.deleteIfExists(output);
         try {
             ManagerInput managerInput;
-            try {
-                managerInput = json.readValue(input.toFile(), ManagerInput.class);
-            } catch (JsonProcessingException exception) {
-                throw new InputValidationException("Niepoprawny JSON wejściowy: " + exception.getOriginalMessage());
+            try (InputStream stream = Files.newInputStream(input)) {
+                managerInput = readInput(stream);
             }
             ParallelizationOutput result = process(managerInput);
             json.writerWithDefaultPrettyPrinter().writeValue(output.toFile(), result);
