@@ -39,6 +39,7 @@
         <div id="legal-dependencies"></div>
         <button type="button" id="add-legal">+ Dodaj legal dependency</button>
       </section>
+      <label><input type="checkbox" id="return-all-solutions"> Zwróć wszystkie rozwiązania</label>
       <button class="primary" type="submit" id="calculate">OBLICZ RÓWNOLEGŁOŚĆ</button>
     </fieldset>
   </form>
@@ -60,7 +61,9 @@
     <section class="result-section" aria-labelledby="solutions-heading">
       <h2 id="solutions-heading">C. SOLUTIONS</h2>
       <div id="solution-summary"></div>
+      <h3>WYBRANE ROZWIĄZANIE</h3>
       <div id="solutions"></div>
+      <section id="all-solutions-section" hidden><h3>WSZYSTKIE OPTYMALNE ROZWIĄZANIA</h3><div id="all-solutions"></div></section>
     </section>
   </div>
 </main>

@@ -60,7 +60,7 @@ public final class ParallelizationHttpServer implements AutoCloseable {
             try {
                 response = path.equals("/api/health")
                         ? Map.of("status", "UP")
-                        : application.process(application.readInput(exchange.getRequestBody()));
+                        : processRequest(exchange);
             } catch (InputValidationException exception) {
                 send(exchange, 400, Map.of("error", exception.getMessage()));
                 return;
@@ -71,6 +71,12 @@ public final class ParallelizationHttpServer implements AutoCloseable {
             }
             send(exchange, 200, response);
         }
+    }
+
+    private ParallelizationApiResponse processRequest(HttpExchange exchange) throws IOException {
+        var request = application.readJson(exchange.getRequestBody(), ParallelizationApiRequest.class);
+        if (request == null) throw new InputValidationException("Request musi być obiektem JSON");
+        return ParallelizationApiResponse.from(application.processSelected(request.managerInput()), request.returnAllSolutions());
     }
 
     private void serveStatic(HttpExchange exchange, String path) throws IOException {

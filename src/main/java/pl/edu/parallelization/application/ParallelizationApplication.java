@@ -30,12 +30,23 @@ public final class ParallelizationApplication {
                 new ParallelizationEngine().solve(problem.stages(), problem.constraints()));
     }
 
-    public ManagerInput readInput(InputStream input) throws IOException {
+    public SelectedParallelizationResult processSelected(ManagerInput input) {
+        ParallelizationOutput candidates = process(input);
+        var selector = new pl.edu.parallelization.application.selection.DeterministicSolutionSelector();
+        var context = pl.edu.parallelization.application.selection.SolutionSelectionContext.from(input);
+        return new SelectedParallelizationResult(candidates, selector.select(candidates.solutions(), context), selector.ruleNames());
+    }
+
+    public <T> T readJson(InputStream input, Class<T> type) throws IOException {
         try {
-            return json.readValue(input, ManagerInput.class);
+            return json.readValue(input, type);
         } catch (JsonProcessingException exception) {
             throw new InputValidationException("Niepoprawny JSON wejściowy: " + exception.getOriginalMessage());
         }
+    }
+
+    public ManagerInput readInput(InputStream input) throws IOException {
+        return readJson(input, ManagerInput.class);
     }
 
     public ParallelizationOutput run(Path input, Path output) throws IOException {

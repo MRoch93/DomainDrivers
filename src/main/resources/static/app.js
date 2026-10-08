@@ -15,7 +15,7 @@ function clearResults() {
   byId('results').hidden = true;
   byId('error').hidden = true;
   byId('progress').textContent = '';
-  for (const id of ['manager-request', 'normalized-constraints', 'solution-summary', 'solutions']) {
+  for (const id of ['manager-request', 'normalized-constraints', 'solution-summary', 'solutions', 'all-solutions']) {
     byId(id).replaceChildren();
   }
 }
@@ -147,13 +147,15 @@ function renderOutput(output, request) {
   byId('solution-summary').replaceChildren(
     element('p', `status: ${output.status}`),
     element('p', `optimalGroupCount: ${output.optimalGroupCount ?? '—'}`),
-    element('p', `solutionCount: ${output.solutionCount}`)
+    element('p', `Znaleziono optymalnych rozwiązań: ${output.totalSolutionCount}`),
+    element('p', `Zwrócono: ${output.returnedSolutionCount}`),
+    element('p', `Selection policy: ${output.selectionPolicy.rules.join(' \u2192 ')}`)
   );
   const solutions = byId('solutions');
   solutions.replaceChildren();
   if (output.status === 'NO_SOLUTION') solutions.append(element('p', 'Brak rozwiązania spełniającego ograniczenia.'));
-  const names = new Map(request.stages.map(stage => [stage.id, stage.name]));
-  output.solutions.forEach((solution, index) => {
+  const names = new Map(request.managerInput.stages.map(stage => [stage.id, stage.name]));
+  function renderSolution(solution, index, target) {
     const article = element('article', undefined, 'solution');
     article.append(element('h3', `Rozwiązanie ${index + 1}`));
     if (solution.groups.length === 0) article.append(element('p', 'Pusty projekt — brak grup.'));
@@ -164,8 +166,12 @@ function renderOutput(output, request) {
       block.append(element('h4', `Grupa ${group.groupNumber}`), list);
       article.append(block);
     }
-    solutions.append(article);
-  });
+    target.append(article);
+  }
+  if (output.selectedSolution) renderSolution(output.selectedSolution, 0, solutions);
+  byId('all-solutions-section').hidden = !request.returnAllSolutions;
+  byId('all-solutions').replaceChildren();
+  if (request.returnAllSolutions) output.allSolutions.forEach((solution, index) => renderSolution(solution, index, byId('all-solutions')));
 }
 
 byId('add-stage').addEventListener('click', () => {
@@ -176,7 +182,9 @@ for (const [button, field] of [['add-logical', 'logicalDependencies'], ['add-leg
     state[field].push({ before: '', after: '' }); clearResults(); renderDependencies();
   });
 }
+byId('return-all-solutions').addEventListener('change', clearResults);
 byId('reset').addEventListener('click', () => {
+  byId('return-all-solutions').checked = false;
   state.stages = []; state.logicalDependencies = []; state.legalDependencies = [];
   clearResults(); renderStages(); renderDependencies();
 });
@@ -193,7 +201,7 @@ byId('load-example').addEventListener('click', () => {
 byId('manager-form').addEventListener('submit', async event => {
   event.preventDefault();
   clearResults();
-  const request = buildManagerInput();
+  const request = { returnAllSolutions: byId('return-all-solutions').checked, managerInput: buildManagerInput() };
   byId('manager-request').textContent = JSON.stringify(request, null, 2);
   byId('results').hidden = false;
   byId('editor').disabled = true;
