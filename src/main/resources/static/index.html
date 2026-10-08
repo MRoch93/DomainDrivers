@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Równoległość etapów projektu</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Równoległość etapów projektu</h1>
+    <p>Wprowadź dane jako manager projektu. Backend zinterpretuje je i obliczy rozwiązania CSP.</p>
+    <p class="flow">DANE MANAGERA ↓ NORMALIZED CONSTRAINTS ↓ SOLUTIONS</p>
+  </header>
+  <form id="manager-form">
+    <fieldset id="editor">
+      <legend>Dane wejściowe managera</legend>
+      <div class="toolbar">
+        <button type="button" id="load-example">LOAD EXAMPLE</button>
+        <button type="button" id="reset">RESET</button>
+      </div>
+      <section aria-labelledby="stages-heading">
+        <h2 id="stages-heading">Etapy</h2>
+        <p>Zasoby wpisz po przecinku. Zaznacz funded, jeśli etap jest finansowany.</p>
+        <div id="stages"></div>
+        <button type="button" id="add-stage">+ Dodaj etap</button>
+      </section>
+      <section aria-labelledby="logical-heading">
+        <h2 id="logical-heading">Logical dependencies</h2>
+        <p>Zależności logiczne: before → after.</p>
+        <div id="logical-dependencies"></div>
+        <button type="button" id="add-logical">+ Dodaj logical dependency</button>
+      </section>
+      <section aria-labelledby="legal-heading">
+        <h2 id="legal-heading">Legal dependencies</h2>
+        <p>Zależności prawne: before → after.</p>
+        <div id="legal-dependencies"></div>
+        <button type="button" id="add-legal">+ Dodaj legal dependency</button>
+      </section>
+      <button class="primary" type="submit" id="calculate">OBLICZ RÓWNOLEGŁOŚĆ</button>
+    </fieldset>
+  </form>
+  <p id="progress" role="status" aria-live="polite"></p>
+  <p id="error" role="alert" hidden></p>
+  <div id="results" hidden>
+    <section class="result-section" aria-labelledby="request-heading">
+      <h2 id="request-heading">A. DANE MANAGERA</h2>
+      <p>Dokładny request wysłany do API.</p>
+      <pre id="manager-request"></pre>
+    </section>
+    <div class="arrow" aria-hidden="true">↓</div>
+    <section class="result-section" aria-labelledby="constraints-heading">
+      <h2 id="constraints-heading">B. INTERPRETACJA / NORMALIZED CONSTRAINTS</h2>
+      <p>Ograniczenia wyprowadzone przez backend z danych managera.</p>
+      <div id="normalized-constraints"></div>
+    </section>
+    <div class="arrow" aria-hidden="true">↓</div>
+    <section class="result-section" aria-labelledby="solutions-heading">
+      <h2 id="solutions-heading">C. SOLUTIONS</h2>
+      <div id="solution-summary"></div>
+      <div id="solutions"></div>
+    </section>
+  </div>
+</main>
+</body>
+</html>

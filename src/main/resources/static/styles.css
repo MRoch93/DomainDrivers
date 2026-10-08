@@ -1,0 +1,43 @@
+:root { font-family: system-ui, sans-serif; color: #243447; background: #f3f5f7; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 1080px; padding: 24px; margin: auto; }
+h1 { font-size: 1.8rem; }
+h2 { font-size: 1.2rem; }
+p { line-height: 1.5; }
+fieldset, .result-section { background: white; border: 1px solid #b8c5d1; border-radius: 8px; padding: 20px; }
+legend { font-weight: bold; padding: 0 8px; }
+section + section { border-top: 1px solid #dce3ea; margin-top: 24px; padding-top: 16px; }
+.toolbar, .dependency-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.stage-row { display: grid; grid-template-columns: 100px 1fr 100px 1fr auto; gap: 12px; align-items: end; padding: 12px 0; border-bottom: 1px solid #e1e6ec; }
+label { display: flex; flex-direction: column; gap: 6px; font-size: .9rem; }
+.funded-label { align-self: center; }
+.dependency-row { margin: 12px 0; }
+.dependency-row label { flex: 1; min-width: 150px; }
+input, select, button { font: inherit; padding: 9px 12px; border: 1px solid #8699ad; border-radius: 4px; }
+input, select { width: 100%; background: white; color: inherit; }
+input[type="checkbox"] { width: 20px; height: 20px; }
+button { cursor: pointer; background: #edf2f7; color: #243447; }
+button:hover { background: #dce6ef; }
+button:disabled { cursor: wait; opacity: .6; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #2878bb; outline-offset: 2px; }
+.primary { display: block; margin-top: 28px; background: #165a8e; color: white; font-weight: bold; }
+.primary:hover { background: #10436a; }
+.flow { color: #165a8e; font-weight: bold; }
+.arrow { text-align: center; font-size: 2rem; color: #165a8e; padding: 8px; }
+pre { background: #f3f5f7; padding: 16px; overflow: auto; font-size: .9rem; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px; border-bottom: 1px solid #dce3ea; overflow-wrap: anywhere; }
+.table-scroll { overflow-x: auto; }
+.solution { margin-top: 20px; border: 1px solid #b8c5d1; border-radius: 6px; padding: 16px; }
+.group { background: #f3f5f7; padding: 12px; margin-top: 12px; border-left: 4px solid #165a8e; }
+.group h4 { margin: 0; }
+li { margin: 6px 0; overflow-wrap: anywhere; }
+#error { padding: 16px; color: #842a22; background: #fff0ed; border: 1px solid #bc554b; border-radius: 6px; }
+[hidden] { display: none !important; }
+@media (max-width: 720px) {
+  main { padding: 12px; }
+  .stage-row { grid-template-columns: 1fr 1fr; }
+  .stage-row button { justify-self: start; }
+  fieldset, .result-section { padding: 14px; min-width: 0; }
+}

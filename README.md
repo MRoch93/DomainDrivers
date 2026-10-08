@@ -33,12 +33,44 @@ Błędy JSON lub danych managera dają HTTP 400 i `{"error":"opis problemu"}`.
 Nieznany endpoint daje 404, nieobsługiwana metoda 405 z nagłówkiem `Allow`.
 Nieoczekiwany błąd aplikacji daje 500 z ogólnym komunikatem, bez stack trace.
 
-Nowe klasy `api.ApiMain` i `api.ParallelizationHttpServer` odpowiadają za
+Klasy `api.ApiMain` i `api.ParallelizationHttpServer` odpowiadają za
 uruchomienie serwera oraz obsługę HTTP. Granicą jest odczyt JSON jako
 `ManagerInput` i wywołanie istniejącej `ParallelizationApplication.process()`.
 Ta metoda wykorzystuje mapper (który wywołuje walidator), model domenowy i CSP.
 Oba interfejsy współdzielą `readInput()` oraz `process()`; API nie powiela reguł.
-Nie powstał frontend, a model domenowy, mapper i silnik nie zostały zmienione.
+Model domenowy, mapper i silnik nie zostały zmienione.
+
+## Formularz webowy do testów E2E
+
+Po uruchomieniu `run-api.cmd` otwórz **http://localhost:8080/**.
+Strona korzysta wyłącznie z HTML, CSS i JavaScript, bez frameworków.
+
+1. Kliknij `LOAD EXAMPLE`, aby wprowadzić cztery przykładowe etapy i zależności.
+2. Kliknij `OBLICZ RÓWNOLEGŁOŚĆ`.
+3. Porównaj trzy sekcje: wysłane dane managera, `normalizedConstraints`
+   otrzymane z backendu oraz wszystkie `solutions`.
+
+Przykład daje sześć ograniczeń, trzy grupy i jedno rozwiązanie: `A | B,C | D`.
+Możesz dodawać i usuwać etapy oraz zależności. Selecty zależności pokazują
+aktualne etapy; po usunięciu wybranego etapu zależność należy poprawić lub usunąć.
+`RESET` czyści formularz oraz wyniki. Zasoby wpisuje się po przecinku.
+Błędy danych i brak połączenia z API są wyświetlane na stronie.
+
+Pliki w `src/main/resources/static/`:
+
+- `index.html` — formularz i trzy sekcje prezentacji przepływu.
+- `styles.css` — prosty układ, wizualne oddzielenie sekcji i widok mobilny.
+- `app.js` — dynamiczny formularz, `buildManagerInput()`, POST do API
+  oraz `renderOutput()` wyświetlający ograniczenia i rozwiązania.
+
+JavaScript zbiera dane, rozdziela tekst zasobów po przecinku i wysyła JSON
+do `/api/parallelization` z `Content-Type: application/json`. Nie wyprowadza
+BEFORE, NOT_WITH ani reguł finansowania. Ograniczenia i wyniki pochodzą z API.
+Nazwy etapów w rozwiązaniach są odczytywane z wysłanego requestu.
+Zmiana formularza czyści poprzednie wyniki, aby nie pokazywać ich dla innych danych.
+
+Serwer Java udostępnia `/`, `/index.html`, `/styles.css` i `/app.js`
+z zasobów wewnątrz JAR. Endpointy `/api/...` i interfejs plikowy pozostają dostępne.
 
 Testy API używają rzeczywistego serwera na wolnym lokalnym porcie oraz klienta
 HTTP JDK. Porównują cały raport HTTP z raportem plikowym i sprawdzają błędy.
