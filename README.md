@@ -20,25 +20,62 @@ W drugim oknie PowerShell:
 
 ```powershell
 Invoke-RestMethod -Uri 'http://localhost:8080/api/health'
-$body = Get-Content -Raw -Encoding UTF8 .\input.json
+$manager = Get-Content -Raw -Encoding UTF8 .\input.json | ConvertFrom-Json
+$body = @{ returnAllSolutions = $false; managerInput = $manager } | ConvertTo-Json -Depth 20
 Invoke-RestMethod -Method Post -Uri 'http://localhost:8080/api/parallelization' -ContentType 'application/json; charset=utf-8' -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) | ConvertTo-Json -Depth 20
 ```
 
 `GET /api/health` zwraca HTTP 200 i `{"status":"UP"}`.
-`POST /api/parallelization` przyjmuje dokładnie format managera używany przez
-`input.json` i zwraca HTTP 200 z pełnym `ParallelizationOutput`: `status`,
-`normalizedConstraints`, `optimalGroupCount`, `solutionCount`, `solutions`.
+`POST /api/parallelization` przyjmuje wrapper API:
+
+```json
+{
+  "returnAllSolutions": false,
+  "managerInput": {
+    "stages": [{"id": "A", "name": "Analiza", "funded": true, "resources": []}],
+    "logicalDependencies": [],
+    "legalDependencies": []
+  }
+}
+```
+
+Przykładowy gotowy request: `examples/api-request.json`.
+
+Pominięcie `returnAllSolutions` oznacza false. `managerInput` zachowuje format
+plikowego input.json; flaga nie należy do ManagerInput.
+Odpowiedź zawiera zawsze `status`, `normalizedConstraints`, `optimalGroupCount`,
+`totalSolutionCount`, `returnedSolutionCount`, `selectedSolution`, `allSolutions`
+i `selectionPolicy` (DETERMINISTIC_DEFAULT).
+Dla false `allSolutions` zawiera tylko wybrany wynik, dla true wszystkich kandydatów.
+`selectedSolution` pozostaje identyczne. Jeden kandydat daje obie liczby równe 1;
+brak kandydatów daje null jako selectedSolution, pustą listę oraz obie liczby równe 0.
+
 Sprzeczne ograniczenia również dają HTTP 200, z wynikiem `NO_SOLUTION`.
 Błędy JSON lub danych managera dają HTTP 400 i `{"error":"opis problemu"}`.
 Nieznany endpoint daje 404, nieobsługiwana metoda 405 z nagłówkiem `Allow`.
 Nieoczekiwany błąd aplikacji daje 500 z ogólnym komunikatem, bez stack trace.
 
-Klasy `api.ApiMain` i `api.ParallelizationHttpServer` odpowiadają za
-uruchomienie serwera oraz obsługę HTTP. Granicą jest odczyt JSON jako
-`ManagerInput` i wywołanie istniejącej `ParallelizationApplication.process()`.
-Ta metoda wykorzystuje mapper (który wywołuje walidator), model domenowy i CSP.
-Oba interfejsy współdzielą `readInput()` oraz `process()`; API nie powiela reguł.
-Model domenowy, mapper i silnik nie zostały zmienione.
+CSP kończy pracę zwróceniem listy wszystkich optymalnych podziałów (jak dotąd,
+jedna poprawna numeracja każdego podziału). Application wybiera istniejącego kandydata:
+
+```text
+ManagerInput -> validation / mapper -> ParallelizationProblem
+ -> ParallelizationEngine -> List<Solution> CSP candidates
+ -> SolutionSelectionContext + DeterministicSolutionSelector -> selectedSolution
+ -> ParallelizationApiResponse (returnAllSolutions filtruje tylko allSolutions)
+```
+
+Reguły w `application/selection` działają kolejno jako tie-breakery:
+`ResourceCountRule` minimalizuje sumę `resources.size() * groupNumber` dla wszystkich
+etapów. Brak resources oznacza zero. `StageIdRule` porównuje leksykograficznie
+reprezentacje takie jak `A,C|B,D`: grupy według numerów, ID w grupie alfabetycznie.
+To techniczny fallback. `SolutionSelectionRule` porównuje poprawnych kandydatów,
+a Constraint określa ich dopuszczalność. Nowa reguła (np. PriorityRule) implementuje
+interfejs i trafia na właściwe miejsce uporządkowanej listy selectora, bez zmian CSP.
+Zasoby pozostają poza Stage, w niemutowalnym SolutionSelectionContext.
+
+Interfejs plikowy nadal używa `process()` i starego ParallelizationOutput,
+zwracając wszystkich kandydatów. HTTP używa `processSelected()` i DTO API.
 
 ## Formularz webowy do testów E2E
 
@@ -48,7 +85,11 @@ Strona korzysta wyłącznie z HTML, CSS i JavaScript, bez frameworków.
 1. Kliknij `LOAD EXAMPLE`, aby wprowadzić cztery przykładowe etapy i zależności.
 2. Kliknij `OBLICZ RÓWNOLEGŁOŚĆ`.
 3. Porównaj trzy sekcje: wysłane dane managera, `normalizedConstraints`
-   otrzymane z backendu oraz wszystkie `solutions`.
+   otrzymane z backendu oraz osobną sekcję WYBRANE ROZWIĄZANIE.
+4. Zaznacz "Zwróć wszystkie rozwiązania", aby wyświetlić dodatkową sekcję
+   WSZYSTKIE OPTYMALNE ROZWIĄZANIA. Checkbox jest domyślnie odznaczony.
+   Wynik pokazuje liczbę znalezionych i zwróconych rozwiązań oraz politykę
+   RESOURCE_COUNT_EARLIER → STAGE_ID.
 
 Przykład daje sześć ograniczeń, trzy grupy i jedno rozwiązanie: `A | B,C | D`.
 Możesz dodawać i usuwać etapy oraz zależności. Selecty zależności pokazują
@@ -77,6 +118,7 @@ HTTP JDK. Porównują cały raport HTTP z raportem plikowym i sprawdzają błęd
 
 ```powershell
 .\mvnw.cmd verify
+node src/test/frontend/app.test.cjs
 .\mvnw.cmd '-Dtest=ParallelizationHttpServerTest' test
 ```
 

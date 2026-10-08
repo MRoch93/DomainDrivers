@@ -53,14 +53,17 @@ class ParallelizationHttpServerTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"input.json", "examples/shared-resources.json"})
-    void httpReturnsExactlyTheFileInterfaceReport(String input) throws Exception {
+    void httpReturnsTheSameCandidatesAsTheFileInterface(String input) throws Exception {
         Path output = directory.resolve("output.json");
         new ParallelizationApplication().run(Path.of(input), output);
-        var response = request("POST", "/api/parallelization", Files.readString(Path.of(input)));
+        var response = request("POST", "/api/parallelization", "{\"returnAllSolutions\":true,\"managerInput\":" + Files.readString(Path.of(input)) + "}");
         assertEquals(200, response.statusCode());
         JsonNode report = json.readTree(response.body());
-        assertEquals(json.readTree(output.toFile()), report);
-        for (String field : new String[]{"status", "normalizedConstraints", "optimalGroupCount", "solutionCount", "solutions"}) {
+        JsonNode file = json.readTree(output.toFile());
+        assertEquals(file.get("solutions"), report.get("allSolutions"));
+        assertEquals(file.get("solutionCount"), report.get("totalSolutionCount"));
+        assertEquals(file.get("normalizedConstraints"), report.get("normalizedConstraints"));
+        for (String field : new String[]{"status", "normalizedConstraints", "optimalGroupCount", "totalSolutionCount", "returnedSolutionCount", "selectedSolution", "allSolutions", "selectionPolicy"}) {
             assertTrue(report.has(field), field);
         }
     }
@@ -74,6 +77,10 @@ class ParallelizationHttpServerTest {
     void badInputReturnsReadableJson(String body) throws Exception {
         var response = request("POST", "/api/parallelization", body);
         assertEquals(400, response.statusCode());
+        if (body.startsWith("{\"stages")) {
+            assertEquals(400, request("POST", "/api/parallelization", "{\"managerInput\":" + body + "}").statusCode());
+        }
+        assertEquals(400, response.statusCode());
         JsonNode error = json.readTree(response.body());
         assertEquals(1, error.size());
         assertFalse(error.get("error").asText().isBlank());
@@ -84,17 +91,19 @@ class ParallelizationHttpServerTest {
     @Test
     void contradictoryConstraintsRemainASuccessfulComputation() throws Exception {
         var response = request("POST", "/api/parallelization", """
-                {"stages":[{"id":"A","name":"A","funded":true},
+                {"managerInput":{"stages":[{"id":"A","name":"A","funded":true},
                 {"id":"B","name":"B","funded":false}],
-                "legalDependencies":[{"before":"B","after":"A"}]}
+                "legalDependencies":[{"before":"B","after":"A"}]}}
                 """);
         assertEquals(200, response.statusCode());
         JsonNode report = json.readTree(response.body());
         assertEquals("NO_SOLUTION", report.get("status").asText());
         assertEquals(2, report.get("normalizedConstraints").size());
         assertTrue(report.get("optimalGroupCount").isNull());
-        assertEquals(0, report.get("solutionCount").asInt());
-        assertTrue(report.get("solutions").isEmpty());
+        assertEquals(0, report.get("totalSolutionCount").asInt());
+        assertTrue(report.get("allSolutions").isEmpty());
+        assertTrue(report.get("selectedSolution").isNull());
+        assertEquals(0, report.get("returnedSolutionCount").asInt());
     }
 
     @Test
@@ -136,6 +145,38 @@ class ParallelizationHttpServerTest {
         var head = request("HEAD", "/api/health", "");
         assertEquals(405, head.statusCode());
         assertEquals("", head.body());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"returnAllSolutions\":\"true\",\"managerInput\":{\"stages\":[]}}",
+            "{\"returnAllSolutions\":1,\"managerInput\":{\"stages\":[]}}",
+            "{\"returnAllSolutions\":false}", "{\"managerInput\":null}"})
+    void invalidWrapperReturnsBadRequest(String body) throws Exception {
+        assertEquals(400, request("POST", "/api/parallelization", body).statusCode());
+    }
+
+    @Test
+    void selectionAndResponsePreference() throws Exception {
+        String manager = Files.readString(Path.of("examples/shared-resources.json"));
+        JsonNode omitted = json.readTree(request("POST", "/api/parallelization", "{\"managerInput\":" + manager + "}").body());
+        JsonNode single = json.readTree(request("POST", "/api/parallelization", "{\"returnAllSolutions\":false,\"managerInput\":" + manager + "}").body());
+        JsonNode all = json.readTree(request("POST", "/api/parallelization", "{\"returnAllSolutions\":true,\"managerInput\":" + manager + "}").body());
+        assertEquals(omitted, single);
+        assertTrue(single.get("totalSolutionCount").asInt() > 1);
+        assertEquals(1, single.get("returnedSolutionCount").asInt());
+        assertEquals(1, single.get("allSolutions").size());
+        assertEquals(single.get("selectedSolution"), single.get("allSolutions").get(0));
+        assertEquals(single.get("selectedSolution"), all.get("selectedSolution"));
+        assertEquals(all.get("totalSolutionCount"), all.get("returnedSolutionCount"));
+        assertEquals(all.get("totalSolutionCount").asInt(), all.get("allSolutions").size());
+        assertTrue(all.get("allSolutions").findValues("groups").contains(all.get("selectedSolution").get("groups")));
+        String oneManager = Files.readString(Path.of("input.json"));
+        for (boolean flag : new boolean[]{false, true}) {
+            JsonNode one = json.readTree(request("POST", "/api/parallelization", "{\"returnAllSolutions\":" + flag + ",\"managerInput\":" + oneManager + "}").body());
+            assertEquals(1, one.get("totalSolutionCount").asInt());
+            assertEquals(1, one.get("returnedSolutionCount").asInt());
+            assertEquals(one.get("selectedSolution"), one.get("allSolutions").get(0));
+        }
     }
 
     private HttpResponse<String> request(String method, String path, String body) throws Exception {
