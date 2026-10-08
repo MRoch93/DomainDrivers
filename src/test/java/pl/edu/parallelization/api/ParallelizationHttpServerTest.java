@@ -98,8 +98,30 @@ class ParallelizationHttpServerTest {
     }
 
     @Test
+    void staticFilesAreAvailableWithCorrectContentTypes() throws Exception {
+        for (String path : new String[]{"/", "/index.html", "/styles.css", "/app.js"}) {
+            var response = request("GET", path, "");
+            assertEquals(200, response.statusCode(), path);
+            String resource = path.equals("/") ? "/index.html" : path;
+            try (var stream = getClass().getResourceAsStream("/static" + resource)) {
+                assertNotNull(stream);
+                assertEquals(new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8), response.body());
+            }
+            String type = path.endsWith(".css") ? "text/css" : path.endsWith(".js") ? "text/javascript" : "text/html";
+            assertEquals(type + "; charset=utf-8", response.headers().firstValue("Content-Type").orElseThrow());
+            var invalidMethod = request("POST", path, "");
+            assertEquals(405, invalidMethod.statusCode());
+            assertEquals("GET", invalidMethod.headers().firstValue("Allow").orElseThrow());
+        }
+        String html = request("GET", "/", "").body();
+        assertTrue(html.contains("src=\"/app.js\""));
+        assertTrue(html.contains("href=\"/styles.css\""));
+        assertTrue(html.contains("id=\"manager-form\""));
+    }
+
+    @Test
     void unknownEndpointsAndMethods() throws Exception {
-        for (String path : new String[]{"/", "/api/unknown", "/api/health/extra", "/api/parallelization/extra"}) {
+        for (String path : new String[]{"/missing.html", "/api/unknown", "/api/health/extra", "/api/parallelization/extra", "/pom.xml", "/static/index.html"}) {
             var response = request("GET", path, "");
             assertEquals(404, response.statusCode());
             assertTrue(json.readTree(response.body()).has("error"));

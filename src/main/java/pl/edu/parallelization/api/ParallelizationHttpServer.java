@@ -38,6 +38,7 @@ public final class ParallelizationHttpServer implements AutoCloseable {
         try (exchange) {
             String path = exchange.getRequestURI().getPath();
             String method = switch (path) {
+                case "/", "/index.html", "/styles.css", "/app.js" -> "GET";
                 case "/api/health" -> "GET";
                 case "/api/parallelization" -> "POST";
                 default -> null;
@@ -52,6 +53,10 @@ public final class ParallelizationHttpServer implements AutoCloseable {
                 return;
             }
             Object response;
+            if (!path.startsWith("/api/")) {
+                serveStatic(exchange, path);
+                return;
+            }
             try {
                 response = path.equals("/api/health")
                         ? Map.of("status", "UP")
@@ -65,6 +70,26 @@ public final class ParallelizationHttpServer implements AutoCloseable {
                 return;
             }
             send(exchange, 200, response);
+        }
+    }
+
+    private void serveStatic(HttpExchange exchange, String path) throws IOException {
+        String resource = path.equals("/") ? "/index.html" : path;
+        String contentType = switch (resource) {
+            case "/styles.css" -> "text/css; charset=utf-8";
+            case "/app.js" -> "text/javascript; charset=utf-8";
+            default -> "text/html; charset=utf-8";
+        };
+        // Wyłącznie jawnie dopuszczone ścieżki; brak dostępu do plików z dysku.
+        try (var stream = ParallelizationHttpServer.class.getResourceAsStream("/static" + resource)) {
+            if (stream == null) {
+                send(exchange, 404, Map.of("error", "Nie znaleziono pliku strony"));
+                return;
+            }
+            byte[] bytes = stream.readAllBytes();
+            exchange.getResponseHeaders().set("Content-Type", contentType);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
         }
     }
 
